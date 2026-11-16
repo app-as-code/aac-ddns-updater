@@ -1,0 +1,82 @@
+services:
+  # --- Main Application Service ---
+  aac-ddns-updater:
+    image: "ghcr.io/qdm12/ddns-updater:v2.10.0"
+    container_name: "aac-ddns-updater"
+    hostname: "ddns-updater"
+    restart: "always"
+
+
+    environment:
+      LOG_LEVEL: "info"
+      TZ: "Europe/Berlin"
+      PUBLICIP_FETCHERS: "all"
+      RESOLVER_ADDRESS: "${RESOLVER_ADDRESS:?set RESOLVER_ADDRESS in .env (see .env.example)}"
+      PERIOD: "5m"
+      PGID: "1000"
+      PUID: "1000"
+      LISTENING_ADDRESS: ":8000"
+      UPDATE_COOLDOWN_PERIOD: "5m"
+      DDNS_PROVIDER: "ionos"
+      DDNS_DOMAIN: "${DDNS_DOMAIN:?set DDNS_DOMAIN in .env (see .env.example)}"
+      DDNS_HOST: "${DDNS_HOST:?set DDNS_HOST in .env (see .env.example)}"
+      DDNS_API_KEY: "${DDNS_API_KEY:?set DDNS_API_KEY in .env (see .env.example)}"
+      DDNS_IP_VERSION: "ipv4"
+      DDNS_IPV6_SUFFIX: ""
+
+    ports:
+      - "8989:8000/tcp"
+
+    volumes:
+      - "/export/docker/aac-ddns-updater/data:/updater/data"
+
+    networks:
+      - exposed
+      - interconnect
+      - secured
+      - stack_internal
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.aac-ddns-updater.rule: "Host(`ddns-updater.example.com`)"
+      traefik.http.routers.aac-ddns-updater.entrypoints: "websecure"
+      traefik.http.routers.aac-ddns-updater.tls: "true"
+      traefik.http.routers.aac-ddns-updater.tls.certresolver: "ionos"
+      traefik.docker.network: "services-secured"
+      traefik.http.services.aac-ddns-updater.loadbalancer.server.port: "8000"
+      traefik.http.services.aac-ddns-updater.loadbalancer.server.scheme: "http"
+      auto-dns.createWildcard.aac-ddns-updater: "false"
+      auto-dns.customDNS.aac-ddns-updater: "true"
+      auto-dns.customDOMAIN.aac-ddns-updater: "example.com"
+      auto-dns.customHost.aac-ddns-updater: "ddns-updater"
+      homepage.group: "Backend - Services"
+      homepage.name: "Ddns Updater"
+      homepage.href: "https://ddns-updater.example.com"
+      homepage.icon: "https://raw.githubusercontent.com/qdm12/ddns-updater/master/readme/ddnsgopher.svg"
+      homepage.description: "Lightweight universal DDNS Updater program."
+
+
+    security_opt:
+    - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '10'
+
+
+
+networks:
+  secured:
+    name: "services-secured"
+    external: true
+  exposed:
+    name: "services-exposed"
+    external: true
+  interconnect:
+    name: "docker-default"
+    external: true
+  stack_internal:
+    name: "aac-ddns-updater_stack_internal"
+    driver: "bridge"
+

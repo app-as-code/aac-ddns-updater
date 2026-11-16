@@ -1,0 +1,116 @@
+service:
+  name: aac-ddns-updater
+  image_repo: ghcr.io/qdm12/ddns-updater
+  image_tag: v2.10.0
+  description: Lightweight universal DDNS Updater program.
+  icon: https://raw.githubusercontent.com/qdm12/ddns-updater/master/readme/ddnsgopher.svg
+  category: Backend - Services
+  stage: prod
+  hostname: ddns-updater
+ports:
+- name: web
+  port: 8000
+  protocol: TCP
+  external_port: 8989
+config:
+  domain_name: example.com
+  generate_hostname: false
+  routing_port: 8000
+  integrations:
+    homepage:
+      enabled: true
+    autodns:
+      enabled: true
+      create_wildcard: false
+    traefik:
+      enabled: true
+      cert_resolver: ionos
+      entrypoint: websecure
+  schema_version: 2
+secrets:
+  DDNS_PROVIDER: ionos
+  DDNS_DOMAIN: CHANGE_ME
+  DDNS_HOST: CHANGE_ME
+  DDNS_API_KEY: CHANGE_ME
+  DDNS_IP_VERSION: ipv4
+  DDNS_IPV6_SUFFIX: ''
+volumes:
+  data:
+    description: Persistent data for DDNS Updater
+deployment_strategy:
+  main:
+    enabled: true
+    target_stage: prod
+  dev:
+    enabled: true
+    target_stage: dev
+  test:
+    enabled: false
+    target_stage: test
+  ansible-dev:
+    enabled: true
+    target_stage: dev
+  iac-dev:
+    enabled: true
+    target_stage: dev
+  template-dev:
+    enabled: true
+    target_stage: dev
+deployments:
+  docker_compose:
+    restart_policy: always
+    host_base_path: /export/docker
+    security_opt:
+    - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '10'
+    volumes:
+    - data:/updater/data
+    environment:
+      LOG_LEVEL: '{{ vars.LOG_LEVEL }}'
+      TZ: '{{ vars.TZ }}'
+      PUBLICIP_FETCHERS: '{{ vars.PUBLICIP_FETCHERS }}'
+      RESOLVER_ADDRESS: '{{ vars.RESOLVER_ADDRESS }}'
+      PERIOD: '{{ vars.PERIOD }}'
+      PGID: '{{ vars.PGID }}'
+      PUID: '{{ vars.PUID }}'
+      LISTENING_ADDRESS: '{{ vars.LISTENING_ADDRESS }}'
+      UPDATE_COOLDOWN_PERIOD: '{{ vars.UPDATE_COOLDOWN_PERIOD }}'
+      DDNS_PROVIDER: '{{ secrets.DDNS_PROVIDER }}'
+      DDNS_DOMAIN: '{{ secrets.DDNS_DOMAIN }}'
+      DDNS_HOST: '{{ secrets.DDNS_HOST }}'
+      DDNS_API_KEY: '{{ secrets.DDNS_API_KEY }}'
+      DDNS_IP_VERSION: '{{ secrets.DDNS_IP_VERSION }}'
+      DDNS_IPV6_SUFFIX: '{{ secrets.DDNS_IPV6_SUFFIX }}'
+  kubernetes:
+    namespace: tools
+    replicas: 1
+    service_type: ClusterIP
+    ingress:
+      enabled: true
+      class_name: traefik
+      tls_secret_name: it-tools-tls
+    persistent_volume_claims:
+      data:
+        storage_class: ceph-rbd
+        size: 1Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+vars:
+  LOG_LEVEL: info
+  TZ: Europe/Berlin
+  PUBLICIP_FETCHERS: all
+  RESOLVER_ADDRESS: CHANGE_ME
+  PERIOD: 5m
+  PGID: '1000'
+  PUID: '1000'
+  LISTENING_ADDRESS: :8000
+  UPDATE_COOLDOWN_PERIOD: 5m
